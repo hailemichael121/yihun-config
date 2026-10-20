@@ -10,7 +10,7 @@
 #   ./yihun-config.sh status               git status of the repo
 #   ./yihun-config.sh modules              list modules
 #
-# Modules: dotfiles vscode packages gnome scripts cron sysinfo
+# Modules: dotfiles sshconfig vscode browsers packages gnome scripts services cron sysinfo
 # Adding a new module = write mod_<name>() and restore_<name>(), add <name> to MODULES.
 
 set -uo pipefail
@@ -30,7 +30,7 @@ P="$REPO/packages"
 S="$REPO/scripts"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
-MODULES=(dotfiles vscode packages gnome scripts cron sysinfo)
+MODULES=(dotfiles sshconfig vscode browsers packages gnome scripts services cron sysinfo)
 
 # Files/dirs (relative to $HOME) saved by the dotfiles module. Add yours here.
 DOTFILES=(
@@ -50,6 +50,8 @@ warn() { printf '\033[1;33m!!\033[0m  %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 need_repo() { [ -f "$REPO/.yihun-config" ] || { warn "No repo at $REPO. Run: $0 init"; exit 1; }; }
 ask() { [ "${YIHUN_YES:-}" = 1 ] && return 0; read -r -p "$1 [y/N] " a; [[ "$a" =~ ^[Yy]$ ]]; }
+
+ask_real() { read -r -p "$1 [y/N] " a; [[ "$a" =~ ^[Yy]$ ]]; }   # ignores YIHUN_YES
 
 # keep setup.sh and this script in the repo
 sync_self() {
@@ -339,6 +341,147 @@ mod_sysinfo() {
   { cat /etc/os-release; echo; uname -r; echo; echo "host: $(hostname)"; echo "saved: $(date -Is)"; } > "$REPO/info/system.txt"
 }
 restore_sysinfo() { :; }
+
+# =====================================================================
+# MODULE: sshconfig (~/.ssh/config only. Private keys are NEVER copied.)
+# =====================================================================
+mod_sshconfig() {
+  log "ssh config (no keys)"
+  [ -f "$HOME/.ssh/config" ] || [ -d "$HOME/.ssh/config.d" ] || { warn "no ~/.ssh/config, skipping"; return; }
+  rm -rf "$C/ssh"; mkdir -p "$C/ssh"
+  [ -f "$HOME/.ssh/config" ] && cp "$HOME/.ssh/config" "$C/ssh/config"
+  [ -d "$HOME/.ssh/config.d" ] && rsync -a "$HOME/.ssh/config.d/" "$C/ssh/config.d/"
+  return 0
+}
+restore_sshconfig() {
+  log "restore ssh config"
+  [ -d "$C/ssh" ] || return 0
+  mkdir -p "$HOME/.ssh"; chmod 700 "$HOME/.ssh"
+  if [ -f "$C/ssh/config" ]; then
+    [ -f "$HOME/.ssh/config" ] && cp "$HOME/.ssh/config" "$HOME/.ssh/config.bak-$STAMP"
+    cp "$C/ssh/config" "$HOME/.ssh/config"; chmod 600 "$HOME/.ssh/config"
+  fi
+  [ -d "$C/ssh/config.d" ] && rsync -a "$C/ssh/config.d/" "$HOME/.ssh/config.d/"
+  warn "Keys are not in the repo. Use ./setup.sh unpack-secrets, or make a new key with ./setup.sh git"
+  return 0
+}
+
+# =====================================================================
+# MODULE: browsers (bookmarks: Chrome/Chromium/Brave/Edge + Firefox)
+#   Chromium family -> raw JSON + a universal bookmarks .html (importable anywhere)
+#   Firefox         -> newest automatic bookmark backup (.jsonlz4)
+# =====================================================================
+BROWSER_BOOKMARKS=(
+  "chrome:$HOME/.config/google-chrome"
+  "chromium:$HOME/.config/chromium"
+  "chromium-snap:$HOME/snap/chromium/common/chromium"
+  "brave:$HOME/.config/BraveSoftware/Brave-Browser"
+  "edge:$HOME/.config/microsoft-edge"
+)
+mod_browsers() {
+  log "browser bookmarks"
+  local out="$C/browsers" entry name base prof pname f d latest
+  rm -rf "$out"; mkdir -p "$out"
+  for entry in "${BROWSER_BOOKMARKS[@]}"; do
+    name="${entry%%:*}"; base="${entry#*:}"
+    for prof in "$base"/Default "$base"/Profile\ *; do
+      f="$prof/Bookmarks"; [ -f "$f" ] || continue
+      pname="$(basename "$prof" | tr ' ' '-')"
+      cp "$f" "$out/$name-$pname.json"
+      have python3 && python3 - "$f" "$out/$name-$pname.html" <<'PY'
+import json, sys, html
+src, dst = sys.argv[1:3]
+data = json.load(open(src, encoding="utf-8"))
+out = ['<!DOCTYPE NETSCAPE-Bookmark-file-1>',
+       '<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">',
+       '<TITLE>Bookmarks</TITLE>', '<H1>Bookmarks</H1>', '<DL><p>']
+def walk(node, depth):
+    pad = "    " * depth
+    for ch in node.get("children", []):
+        if ch.get("type") == "folder":
+            out.append(f'{pad}<DT><H3>{html.escape(ch.get("name", ""))}</H3>')
+            out.append(f'{pad}<DL><p>')
+            walk(ch, depth + 1)
+            out.append(f'{pad}</DL><p>')
+        elif ch.get("type") == "url":
+            out.append(f'{pad}<DT><A HREF="{html.escape(ch.get("url", ""), quote=True)}">{html.escape(ch.get("name", ""))}</A>')
+for root in data.get("roots", {}).values():
+    if isinstance(root, dict) and root.get("children") is not None:
+        out.append(f'    <DT><H3>{html.escape(root.get("name", ""))}</H3>')
+        out.append('    <DL><p>')
+        walk(root, 2)
+        out.append('    </DL><p>')
+out.append('</DL><p>')
+open(dst, "w", encoding="utf-8").write("\n".join(out))
+PY
+    done
+  done
+  # Firefox (deb or snap): newest automatic backup per profile
+  for d in "$HOME"/.mozilla/firefox/*/bookmarkbackups "$HOME"/snap/firefox/common/.mozilla/firefox/*/bookmarkbackups; do
+    [ -d "$d" ] || continue
+    latest="$(ls -1t "$d"/bookmarks-*.jsonlz4 2>/dev/null | head -1)"
+    [ -n "$latest" ] && cp "$latest" "$out/firefox-$(basename "$(dirname "$d")").jsonlz4"
+  done
+  rmdir "$out" 2>/dev/null
+  return 0
+}
+restore_browsers() {
+  log "restore bookmarks"
+  [ -d "$C/browsers" ] || { echo "  no bookmarks saved"; return 0; }
+  local dest="$HOME/yihun-bookmarks"
+  mkdir -p "$dest"; cp "$C"/browsers/* "$dest/"
+  cat <<EOF
+  Bookmarks copied to: $dest
+  Open the browser once, then import:
+   Chrome / Brave / Edge : Ctrl+Shift+O -> menu (three dots) -> Import bookmarks -> pick a .html file
+   Firefox               : Ctrl+Shift+O -> Import and Backup -> Restore -> Choose File -> the .jsonlz4
+                           (or Import Bookmarks from HTML with any .html file there)
+  If you sign in with a Google or Firefox account, sync brings them back by itself.
+EOF
+  return 0
+}
+
+# =====================================================================
+# MODULE: services (your own systemd units, enabled user services, docker daemon.json)
+# =====================================================================
+mod_services() {
+  log "systemd services + docker config"
+  local out="$C/services" f
+  rm -rf "$out"; mkdir -p "$out/system"
+  for f in /etc/systemd/system/*.service /etc/systemd/system/*.timer; do   # units YOU wrote (regular files)
+    [ -f "$f" ] && [ ! -L "$f" ] || continue
+    [[ "$(basename "$f")" == snap.* ]] && continue
+    cp "$f" "$out/system/"
+  done
+  systemctl list-unit-files --state=enabled --no-legend 2>/dev/null | awk '{print $1}' > "$out/enabled-system.txt"
+  systemctl --user list-unit-files --state=enabled --no-legend 2>/dev/null | awk '{print $1}' > "$out/enabled-user.txt"
+  [ -f /etc/docker/daemon.json ] && cp /etc/docker/daemon.json "$out/docker-daemon.json"
+  rmdir "$out/system" 2>/dev/null
+  return 0
+}
+restore_services() {
+  log "restore services"
+  local s="$C/services" f u
+  if [ -d "$s/system" ]; then
+    echo "  system units saved:"; for f in "$s"/system/*; do echo "   - $(basename "$f")"; done
+    if ask_real "Install these into /etc/systemd/system and enable them?"; then
+      sudo cp "$s"/system/* /etc/systemd/system/ && sudo systemctl daemon-reload
+      for f in "$s"/system/*; do sudo systemctl enable --now "$(basename "$f")" || warn "could not start $(basename "$f")"; done
+    fi
+  fi
+  if [ -f "$s/docker-daemon.json" ] && ask_real "Install Docker daemon.json?"; then
+    sudo mkdir -p /etc/docker && sudo cp "$s/docker-daemon.json" /etc/docker/daemon.json
+    have docker && sudo systemctl restart docker
+  fi
+  # user services themselves come back with the dotfiles module (.config/systemd/user); enable them
+  if [ -f "$s/enabled-user.txt" ]; then
+    systemctl --user daemon-reload 2>/dev/null
+    while read -r u; do
+      [ -f "$HOME/.config/systemd/user/$u" ] && systemctl --user enable "$u" 2>/dev/null && echo "  enabled (user): $u"
+    done < "$s/enabled-user.txt"
+  fi
+  return 0
+}
 
 # ---------- dispatcher ----------
 run_modules() {  # $1 = prefix (mod_|restore_), rest = module names

@@ -7,7 +7,7 @@
 #   ./setup.sh pack-secrets    (OLD PC) encrypt ssh keys + tokens into one file for a USB stick
 #   ./setup.sh unpack-secrets  (NEW PC) decrypt that file back into place
 #
-# Steps (in order): base git configs secrets python node flutter docker rust go vscode packages check
+# Steps (in order): base git configs secrets python node flutter docker rust go vscode packages extras check
 # Secrets are asked at run time and stored only in ~/.config/yihun/secrets.env (chmod 600).
 # They are NEVER written into this repo.
 
@@ -21,7 +21,7 @@ SECRET_KEYS="$REPO/secrets.keys"      # NAMES only, safe to commit
 NVM_VERSION="v0.40.3"                 # bump when a newer nvm is out
 FLUTTER_DIR="$HOME/development/flutter"
 
-STEPS=(base git configs secrets python node flutter docker rust go vscode packages check)
+STEPS=(base git configs secrets python node flutter docker rust go vscode packages extras check)
 
 # ---------- helpers ----------
 log()     { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -94,8 +94,8 @@ step_git() {
 
 # =====================================================================
 step_configs() {
-  log "Restore configs: dotfiles, desktop, scripts, cron (old files are backed up first)"
-  cfg_restore dotfiles gnome scripts cron
+  log "Restore configs: dotfiles, ssh config, desktop, scripts, cron (old files are backed up first)"
+  cfg_restore dotfiles sshconfig gnome scripts cron
 }
 
 # =====================================================================
@@ -218,6 +218,11 @@ step_packages() {
   log "Your other apps (apt, snap, flatpak, pipx, npm, cargo lists)"
   warn "If this PC has different hardware, apt may list drivers that do not apply. Review packages/apt-manual.txt first."
   confirm "Install everything from the saved lists?" && cfg_restore packages
+}
+
+step_extras() {
+  log "Extras: browser bookmarks, your systemd services, docker config"
+  cfg_restore browsers services
 }
 
 step_check() {
