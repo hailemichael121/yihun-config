@@ -1,0 +1,3 @@
+### THIS FILE IS AUTOMATICALLY CONFIGURED ###
+# You may comment out this entry, but any other modifications may be lost.
+deb [arch=amd64 signed-by=/usr/share/keyrings/termius-2026.gpg,/usr/share/keyrings/termius-2029.gpg] https://deb.termius.com squeeze main

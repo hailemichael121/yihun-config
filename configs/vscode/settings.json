@@ -1,0 +1,55 @@
+{
+    "git.autofetch": true,
+    "workbench.browser.openLocalhostLinks": false,
+    "vs-kubernetes": {
+        "vscode-kubernetes.kubectl-path-linux": "/home/yihun/.local/state/vs-kubernetes/tools/kubectl/kubectl",
+        "vscode-kubernetes.helm-path-linux": "/home/yihun/.local/state/vs-kubernetes/tools/helm/linux-amd64/helm",
+        "vscode-kubernetes.minikube-path-linux": "/home/yihun/.local/state/vs-kubernetes/tools/minikube/linux-amd64/minikube"
+    },
+    "files.associations": {
+        "*.tsx": "typescriptreact"
+    },
+    "files.autoSave": "afterDelay",
+    "chat.viewSessions.orientation": "stacked",
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+    },
+    "makefile.configureOnOpen": true,
+    "[dart]": {
+        "editor.formatOnSave": true,
+        "editor.formatOnType": true,
+        "editor.rulers": [
+            80
+        ],
+        "editor.selectionHighlight": false,
+        "editor.tabCompletion": "onlySnippets",
+        "editor.wordBasedSuggestions": "off"
+    },
+    "macle.userIdentifierId": "b56d343f7a3b3a65198259ab139a0d76",
+    "fidel.convertNumbers": true,
+    "fidel.convertPunctuation": true,
+    "yaml.disableSchemaDetection": [
+        "**/.github/workflows/*.yml",
+        "**/.github/workflows/*.yaml",
+        "**/.gitea/workflows/*.yml",
+        "**/.gitea/workflows/*.yaml",
+        "**/.forgejo/workflows/*.yml",
+        "**/.forgejo/workflows/*.yaml"
+    ],
+    "diffEditor.ignoreTrimWhitespace": false,
+    "fidel.smartCorrection": true,
+    "fidel.suggestions": false,
+    "workbench.sideBar.location": "right",
+    "chat.agent.thinking.phrases": {
+        "mode": "append",
+        "phrases": [ 
+            "Please wait while I'm cooking.",
+            "Let him cook.",
+            "don't interrupt me while I'm cooking.",
+            "I'm cooking, please wait.",
+            "dulu, jangan ganggu saya.",
+            "here comes the chef, please wait.",
+            "here comes the train, please wait.",
+        ]
+    }
+}

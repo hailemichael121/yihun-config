@@ -1,0 +1,12 @@
+#!/bin/bash
+
+export WINEPREFIX=$HOME/.wine-telebuit
+export WINEARCH=win64
+export PATH=$PATH:/usr/lib/x86_64-linux-gnu/wine
+
+cd ~/Downloads/DevToolkit_25.9.0/Macle_25.9.0_DevSuite_Simulator
+
+wine WinSimulator/macle-simulator.exe \
+--no-sandbox \
+--disable-gpu-sandbox
+

@@ -1,0 +1,5 @@
+CairoSVG==2.9.0
+edge-tts==7.2.8
+matplotlib==3.11.1
+python-pptx==1.0.2
+svglib==2.0.2

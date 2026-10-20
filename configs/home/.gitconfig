@@ -1,0 +1,10 @@
+[user]
+	name = hailemichael121
+	email = yihunaashe@gmail.com
+[credential]
+	helper = store
+[core]
+	excludesfile = /home/yihun/.config/git/ignore
+[http]
+	postBuffer = 524288000
+	version = HTTP/1.1

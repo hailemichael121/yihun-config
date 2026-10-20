@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DO Firewall Updater
+Comment=Updates DigitalOcean database firewall with current IP on startup
+Exec=bash /home/yihun/do_firewall_updater/run.sh
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true

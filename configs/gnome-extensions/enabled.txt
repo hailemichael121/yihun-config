@@ -1,0 +1,8 @@
+transparent-top-bar@ftpix.com
+dash-to-dock@micxgx.gmail.com
+ding@rastersoft.com
+snapd-prompting@canonical.com
+snapd-search-provider@canonical.com
+tiling-assistant@ubuntu.com
+ubuntu-appindicators@ubuntu.com
+web-search-provider@ubuntu.com

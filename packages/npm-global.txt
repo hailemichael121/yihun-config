@@ -1,0 +1,15 @@
+@github/copilot
+@vscode/vsce
+@vtsls/language-server
+eas-cli
+eslint
+freebuff
+nodemon
+opencode-ai
+ovsx
+pm2
+pnpm
+prettier
+serve
+tsx
+typescript

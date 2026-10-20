@@ -1,0 +1,8 @@
+### THIS FILE IS AUTOMATICALLY CONFIGURED ###
+# grok-bot rewrites this file on every install and upgrade.
+# To disable the source, set Enabled: no below; that setting is kept.
+Types: deb
+URIs: https://downloads.cursor.com/aptrepo
+Suites: grok-bot
+Components: main
+Signed-By: /usr/share/keyrings/grok-bot.gpg
