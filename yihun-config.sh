@@ -49,7 +49,27 @@ log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m!!\033[0m  %s\n' "$*" >&2; }
 have() { command -v "$1" >/dev/null 2>&1; }
 need_repo() { [ -f "$REPO/.yihun-config" ] || { warn "No repo at $REPO. Run: $0 init"; exit 1; }; }
-ask() { read -r -p "$1 [y/N] " a; [[ "$a" =~ ^[Yy]$ ]]; }
+ask() { [ "${YIHUN_YES:-}" = 1 ] && return 0; read -r -p "$1 [y/N] " a; [[ "$a" =~ ^[Yy]$ ]]; }
+
+# keep setup.sh and this script in the repo
+sync_self() {
+  local f
+  [ "$SELF_DIR" = "$REPO" ] && return
+  for f in yihun-config.sh setup.sh; do
+    [ -f "$SELF_DIR/$f" ] && cp "$SELF_DIR/$f" "$REPO/$f" && chmod +x "$REPO/$f"
+  done
+}
+
+# warn if files about to be committed look like they contain secrets
+scan_secrets() {
+  local pat='(ghp_|gho_|github_pat_)[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|sk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|(api_?key|secret|token|passw(or)?d)[A-Za-z_]*=[^[:space:]]{12,}'
+  local hits
+  hits="$(grep -rInEi --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=local-share --exclude-dir=gnome-extensions "$pat" "$C" "$S" "$P" 2>/dev/null | cut -d: -f1,2 | sed "s|$REPO/||" | head -20)"
+  [ -z "$hits" ] && return 0
+  warn "Possible secrets in files about to be committed (file:line):"; echo "$hits" >&2
+  warn "Move them to ~/.config/yihun/secrets.env (./setup.sh secrets) and use \$NAME in your configs."
+  [ -t 0 ] && ask "Commit anyway?"
+}
 
 # ---------- git / repo ----------
 cmd_init() {
@@ -91,8 +111,7 @@ My Ubuntu setup. One script backs it up, one command restores it.
 Keep this repo **private**. Do not add SSH keys, tokens or passwords.
 EOF
 
-  [ "$SELF" = "$REPO/yihun-config.sh" ] || cp "$SELF" "$REPO/yihun-config.sh"
-  chmod +x "$REPO/yihun-config.sh"
+  sync_self
   git add -A && git commit -qm "init yihun-config" 2>/dev/null
   log "Repo ready at $REPO"
   log "Next: $REPO/yihun-config.sh backup"
@@ -100,7 +119,8 @@ EOF
 
 git_commit() {
   cd "$REPO" || exit 1
-  [ "$SELF" = "$REPO/yihun-config.sh" ] || cp "$SELF" "$REPO/yihun-config.sh"
+  sync_self
+  scan_secrets || { warn "Commit skipped. Fix the files above, then run backup again."; return; }
   git add -A
   if git diff --cached --quiet; then log "No changes since last backup."; return; fi
   git commit -qm "backup $(hostname) $(date '+%F %H:%M')" && log "Committed."
@@ -232,7 +252,7 @@ restore_packages() {
 mod_gnome() {
   log "gnome / ubuntu desktop"
   have dconf || { warn "dconf missing, skipping"; return; }
-  mkdir -p "$C/dconf" "$C/gnome-extensions"
+  mkdir -p "$C/dconf" "$C/gnome-extensions" "$C/local-share"
   dconf dump / > "$C/dconf/full.dconf"
   have gnome-extensions && gnome-extensions list --enabled > "$C/gnome-extensions/enabled.txt" 2>/dev/null
   [ -d "$HOME/.local/share/gnome-shell/extensions" ] && \
